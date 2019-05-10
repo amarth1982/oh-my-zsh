@@ -6,28 +6,25 @@ _print_to_std_err() {
     echo $1 >&2
 }
 
-if [ -z $JIRA_USER ]; then
- _print_to_std_err "Set environment variable JIRA_USER with base64("username:password")"
- # exit -1;
-
-fi
-
-if [ -z $JIRA_REST_API ]; then
-
- _print_to_std_err "Set enviornment varialbe JIRA_REST_API with the url to the jira rest api, with no ending slash"
- # exit -1;
-fi
-
-if [ -z $JIRA_BROWSE ]; then
-
- _print_to_std_err "Set enviornment varialbe JIRA_BROWSE with the url to the jira web, with no ending slash"
- # exit -1;
-fi
+function _jog_check_env(){
+ if ! [ -z $JIRA_USER ] && ! [ -z $JIRA_REST_API ] && ! [ -z $JIRA_BROWSE ] && ! [ -z $EPIC_FIELD ] && ! [ -z $RESOLUTION_DESCRIPTION_FIELD ] && ! [ -z $JAAS_SERVER ]; then
+  return 0;
+ else
+  echo "not all required env variables are set, pls view the readme file for more info"
+  return 1;
+ fi
+}
 
 # ------------------------------------------------------------------------------
 
 # make jira calls and return the json data
 function _jira_get() {
+
+ _jog_check_env
+
+ if [ $? -eq 1 ]; then
+  return -1
+ fi
 
  if [ -z $1 ]; then
   _print_to_std_err "requires jira issue id or key"
@@ -134,6 +131,11 @@ function _jira_issue_details() {
 
 # add comments to a JIRA issue
 function _jira_add_comments() {
+  _jog_check_env
+
+ if [ $? -eq 1 ]; then
+  return -1
+ fi
 
  if ! [ $# -eq 2 ]; then
   _print_to_std_err 'requires 1. JIRA issue key, 2. body for the comment'
@@ -245,6 +247,11 @@ function _jog_checkout() {
 # param 1: jira issue key
 # param 2: jira comment id (optional)
 function _jog_git_checkout() {
+  _jog_check_env
+
+ if [ $? -eq 1 ]; then
+  return -1
+ fi
 
  # switch to master
  if [ $(echo "$(git_current_branch)") != $MASTER ]; then
@@ -329,6 +336,11 @@ function _jog_hub_create_issue(){
 # ------------------------------------------------------------------------------
 
 function _jog_commit() {
+  _jog_check_env
+
+ if [ $? -eq 1 ]; then
+  return -1
+ fi
 
  if [ $# -lt 2 ]; then
   echo "commit requires message and github issue number(s)"
@@ -344,6 +356,11 @@ function _jog_commit() {
 }
 
 function _jog_pr() {
+  _jog_check_env
+
+ if [ $? -eq 1 ]; then
+  return -1
+ fi
 
  # this should give org/repo name
  local org_repo_name=$(grv get-url --all upstream | sed -e 's/.*:\(.*\).git.*/\1/')
@@ -423,16 +440,10 @@ function _jog_pr() {
 
 # ------------------------------------------------------------------------------
 
-# Check if JIRA_USER, JIRA_REST_API, JIRA_BROWSE, EPIC_FIELD, RESOLUTION_DESCRIPTION_FIELD, JAAS_SERVER env variables are set, only then allow the following aliases
-if ! [ -z $JIRA_USER ] && ! [ -z $JIRA_REST_API ] && ! [ -z $JIRA_BROWSE ] && ! [ -z $EPIC_FIELD ] && ! [ -z $RESOLUTION_DESCRIPTION_FIELD ] && ! [ -z $JAAS_SERVER ]; then
-
  alias j="_jira_get"
  alias jd="_jira_issue_details_cmd"
 
  alias jco="_jog_checkout"
  alias jc="_jog_commit"
  alias jpr="_jog_pr"
-else
- echo 'Required environment variables are not initalized'
-fi 
 
